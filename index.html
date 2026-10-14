@@ -199,12 +199,23 @@
   }
   .out.v1 { font-family: "Calctext v1", monospace; }
   .out.v2 { font-family: "Calctext v2", monospace; }
+  .out.flipped { transform: rotate(180deg); }
   .out .miss { color: var(--warn); font-family: system-ui, sans-serif; opacity: 0.7; }
   .empty { padding: 32px 24px; text-align: center; color: var(--muted); }
+
+  .half { width: 100%; display: flex; align-items: center; justify-content: center; }
+  /* Stacked: card splits into two halves, the lower one upside down. */
+  .card.split { flex-direction: column; align-items: stretch; padding: 0; }
+  .card.split .half { flex: 1; min-height: 100px; padding: 24px; }
+  .card.split .tag + .half { padding-top: 40px; }
+  .card.split .half + .half { padding-top: 24px; border-top: 1px dashed var(--line); }
 
   @media (max-width: 600px) {
     main { padding-top: 24px; }
     .card { padding: 36px 12px 16px; min-height: 130px; }
+    .card.split .half { padding: 16px 12px; }
+    .card.split .tag + .half { padding-top: 36px; }
+    .card.split .half + .half { padding-top: 16px; }
     input[type=range] { width: 100%; }
     .field:has(#size) { flex: 1 1 100%; }
   }
@@ -248,6 +259,15 @@
         <label><input type="radio" name="case" value="lower"><span>lower</span></label>
         <label><input type="radio" name="case" value="upper"><span>UPPER</span></label>
         <label><input type="radio" name="case" value="both" checked><span>Both</span></label>
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="label" id="flip-label">Orientation</span>
+      <div class="seg" role="radiogroup" aria-labelledby="flip-label">
+        <label><input type="radio" name="flip" value="normal" checked><span>Normal</span></label>
+        <label><input type="radio" name="flip" value="flip"><span>Upside down</span></label>
+        <label><input type="radio" name="flip" value="stack"><span>Stacked</span></label>
       </div>
     </div>
 
@@ -307,6 +327,9 @@
     const value = text.value;
     const versions = picked("ver") === "both" ? ["v1", "v2"] : [picked("ver")];
     const cases = picked("case") === "both" ? ["lower", "upper"] : [picked("case")];
+    const orient = picked("flip");
+    // One entry per half: true = upside down.
+    const halves = orient === "stack" ? [false, true] : [orient === "flip"];
 
     stage.replaceChildren();
     note.textContent = "";
@@ -329,12 +352,21 @@
         tag.className = "tag";
         tag.textContent = `${v} · ${CASES[c].label}`;
 
-        const out = document.createElement("pre");
-        out.className = `out ${v}`;
-        out.style.fontSize = size.value + "px";
-        if (fill(out, CASES[c].fn(value), v) && v === "v2") v2Missing = true;
+        card.append(tag);
+        if (halves.length > 1) card.classList.add("split");
 
-        card.append(tag, out);
+        for (const flipped of halves) {
+          const out = document.createElement("pre");
+          out.className = `out ${v}`;
+          out.classList.toggle("flipped", flipped);
+          out.style.fontSize = size.value + "px";
+          if (fill(out, CASES[c].fn(value), v) && v === "v2") v2Missing = true;
+
+          const half = document.createElement("div");
+          half.className = "half";
+          half.append(out);
+          card.append(half);
+        }
         stage.append(card);
       }
     }
@@ -370,7 +402,7 @@
 
   text.addEventListener("input", render);
   size.addEventListener("input", () => { sizeVal.textContent = size.value; render(); });
-  document.querySelectorAll('input[name="ver"], input[name="case"]').forEach((r) => r.addEventListener("change", render));
+  document.querySelectorAll('input[name="ver"], input[name="case"], input[name="flip"]').forEach((r) => r.addEventListener("change", render));
   render();
 </script>
 </body>
